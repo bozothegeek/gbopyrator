@@ -353,6 +353,16 @@ def write_bulk_out(gbop_device, data, qiuet=False):
             _ = gbop_device.read(IN_ENDPOINT, 4)
 
 
+def hex_dump(data):
+    print(f"{'Offset':<8} {'Hex':<48} {'ASCII'}")
+    print("-" * 75)
+    for i in range(0, len(data), 16):
+        chunk = data[i:i+16]
+        hex_str = chunk.hex(' ')
+        # Replace non-printable chars with dots
+        ascii_str = "".join(chr(b) if 32 <= b <= 126 else "." for b in chunk)
+        print(f"{i:04x}     {hex_str:<48} {ascii_str}")
+
 def read_cartridge_info(gbop_device):
     """
     Read cartridge info from GB Operator device
@@ -365,6 +375,7 @@ def read_cartridge_info(gbop_device):
     -------
     dict
     """
+
     # Send trigger_bytes
     gbop_device.write(OUT_ENDPOINT, add_crc32(TRIGGER_CARTRIDGE_INFO))
 
@@ -375,14 +386,29 @@ def read_cartridge_info(gbop_device):
     # Read card data from GB Operator
     received_data = read_bulk_in(gbop_device, num_bytes=256, quiet=True)
 
-    # Extract card info only
+    #Extract card info only (proprietary header from GB operator)
     received_data = received_data[:60]
-
+    
+    # Prints space-separated Hex bytes for debug purposes
+    #hex_dump(received_data)
+        
     # check if received_data is all null bytes
     if not (received_data[3] or received_data[4]):
         return None
 
-    if received_data[2] == 0x20:
+    if received_data[2] == 0x20: # For GB/GBC
+        #example :
+        # Offset   Hex                                              ASCII
+        # ---------------------------------------------------------------------------
+        # 0000     09 00 20 01 01 00 00 08 00 00 20 00 00 5a 03 04  .. ....... ..Z..
+        # 0010     02 6c 74 4c 00 00 00 00 00 00 09 05 00 02 00 00  .ltL............
+        # 0020     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+        # 0030     00 00 00 00 00 00 00 00 00 00 00 00              ............
+        # extyract from DB:
+        # ──────────────────────────────── CARTRIDGE INFO ────────────────────────────────
+        # Detected game:  Legend of Zelda, The - Link's Awakening (F) .gb
+        # ROM size:       512 KiB (32 banks)
+        # RAM size:       8 KiB
         # Parse data
         cartridge_info = {
             "cartridge_type": "GB/GBC",
@@ -392,16 +418,38 @@ def read_cartridge_info(gbop_device):
             "MBC_type": MBC_TYPES[received_data[14]],
             "ROM_type": ROM_TYPES[received_data[15]],
             "RAM_type": RAM_TYPES[received_data[16]],
-            "heasder_checksum": received_data[17],
+            "header_checksum": received_data[17],
             "global_checksum": received_data[18:20],
         }
-    else:
+    elif received_data[2] == 0x30: # for GBA
+        #zelda 
+        # Offset   Hex                                              ASCII
+        # ---------------------------------------------------------------------------
+        # 0000     09 00 30 01 01 00 00 00 00 00 00 00 00 47 41 5a  ..0..........GAZ
+        # 0010     4c 30 00 85 00 00 00 00 00 00 09 05 00 02 00 00  L0..............
+        # 0020     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+        # 0030     00 00 00 00 00 00 00 00 00 00 00 00              ............
+        #or
+        # Offset   Hex                                              ASCII
+        # ---------------------------------------------------------------------------
+        # 0000     09 00 30 01 01 00 00 00 00 00 00 00 00 47 42 5a  ..0..........GBZ
+        # 0010     4d 30 00 d3 00 00 00 00 00 00 09 05 00 02 00 00  M0..............
+        # 0020     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+        # 0030     00 00 00 00 00 00 00 00 00 00 00 00              ............
         cartridge_info = {
             "cartridge_type": "GBA",
-            # "ROM_size": int.from_bytes(received_data[5:8], byteorder="little"),
-            # "RAM_size": int.from_bytes(received_data[9:12], byteorder="little"),
+            "ROM_size": 8388608, #int.from_bytes(received_data[5:8], byteorder="little"), #usually 0(unknown) for GBA GB operator header
+            "RAM_size": int.from_bytes(received_data[9:12], byteorder="little"), #usually 0(unknown) for GBA GB operator header
+            "title_first_letter": chr(received_data[13]),
+            "game_code": chr(received_data[14]) + chr(received_data[15]) + chr(received_data[16]),
+            "game_region": chr(received_data[17]), # region or version ? 0 for JPN, 4/6 for EUR; 5 for FRA
+            "MBC_type": 0x00, #NA for GBA GB operator header
+            "ROM_type": 0x00, #NA for GBA GB operator header
+            "RAM_type": 0x00, #NA for GBA GB operator header
+            "unknwon1": received_data[18], #seems a flag/value for type of rom/ram/version ?!
+            "header_checksum": received_data[19], #seems a checksum for GBA GB operator header or other value ?
+            "global_checksum": 0x000000,  #NA for GBA GB operator header
         }
-        raise NotImplementedError("GBA cartridge support not implemented yet")
 
     return cartridge_info
 
