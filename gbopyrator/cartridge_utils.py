@@ -93,8 +93,32 @@ class CartridgeReader(object):
             num_bytes = size
         return cu.read_rom(self.gbop_device, num_bytes, quiet=self.quiet)
 
-    def dump_rom(self, filename):
-        rom = self.read_rom()
+    def parse_size_to_bytes(self, size_str):
+        """
+        Convert a string as '4 MiB' or '128 KiB' in 'bytes' number (int).
+        """
+        if not size_str:
+            return 0
+            
+        # clean string (remove space and upper case)
+        size_str = size_str.upper().replace(' ', '')
+        
+        try:
+            if "MIB" in size_str:
+                number = float(size_str.replace("MIB", ""))
+                return int(number * 1024 * 1024)
+            elif "KIB" in size_str:
+                number = float(size_str.replace("KIB", ""))
+                return int(number * 1024)
+            elif "MB" in size_str: # Security if the 'i' is forgotten
+                number = float(size_str.replace("MB", ""))
+                return int(number * 1024 * 1024)
+        except ValueError:
+            print(f"Error : Impossible to read size '{size_str}'")
+            return 0
+        
+        return 0
+    
     def dump_rom(self, filename, romsize=None):
         rom = self.read_rom(size=romsize)
         with open(filename, "wb") as f:
@@ -104,17 +128,25 @@ class CartridgeReader(object):
     @check_initialized
     @release_device
     @get_cartridge_info
-    def read_save(self, cartridge_info=None):
-        num_bytes = cartridge_info["RAM_size"]
+    def read_save(self, cartridge_info=None, size=0):
+        if size != 0:
+            num_bytes = size
+        else:
+            num_bytes = cartridge_info["RAM_size"]
+        
         if num_bytes == 0:
             self.printer.error("No RAM (save) detected on this cartridge.")
             return None
         else:
-            # with self.printer.status("Reading save..."):
-            return cu.read_save(self.gbop_device, num_bytes, quiet=self.quiet)
-
-    def dump_save(self, filename):
-        save = self.read_save()
+            if (self.debug):
+                self.printer.print("RAM size (save) detected on this cartridge : " + str(num_bytes))
+            if cartridge_info["cartridge_type"] == "GBA":
+                return cu.read_save(self.gbop_device, num_bytes, quiet=self.quiet, debug=self.debug, rom_type="GBA")
+            else:
+                return cu.read_save(self.gbop_device, num_bytes, quiet=self.quiet, debug=self.debug, rom_type="GB/GBC")
+    
+    def dump_save(self, filename, size=0):
+        save = self.read_save(size=size)
         if save is not None:
             with open(filename, "wb") as f:
                 f.write(save)
@@ -136,7 +168,7 @@ class CartridgeReader(object):
             )
             return None
         # with self.printer.status("Writing save..."):
-        return cu.write_save(self.gbop_device, data, quiet=self.quiet)
+        return cu.write_save(self.gbop_device, data, quiet=self.quiet, debug=self.debug)
 
     def write_save_from_file(self, filename):
         with open(filename, "rb") as f:

@@ -160,7 +160,7 @@ def _craft_rom_read_trigger(rom_size):
     return trigger_rom_read
 
 
-def _craft_save_read_trigger(save_size):
+def _craft_save_read_trigger(save_size, rom_type="GB/GBC"):
     """
     Craft a save read trigger
 
@@ -176,7 +176,10 @@ def _craft_save_read_trigger(save_size):
     save_size_bytearray = save_size.to_bytes(
         (save_size.bit_length() + 7) // 8, byteorder="little"
     )
-    trigger_save_read = bytearray([0x02, 0x00, 0x00, 0x00, 0x00])
+    if(rom_type == "GB/GBC"): #GB/GBC
+        trigger_save_read = bytearray([0x02, 0x00, 0x00, 0x00, 0x00])
+    else: #GBA
+        trigger_save_read = bytearray([0x02, 0x01, 0x00, 0x00, 0x00])
     trigger_save_read += save_size_bytearray
 
     # Add 0x00 to reach 60 bytes
@@ -455,7 +458,7 @@ def read_cartridge_info(gbop_device, debug=False):
     return cartridge_info
 
 
-def read_save(gbop_device, num_bytes, quiet=False):
+def read_save(gbop_device, num_bytes, quiet=False, debug=False, rom_type="GB/GBC"):
     """
     Dump save file from GB Operator device
 
@@ -465,7 +468,11 @@ def read_save(gbop_device, num_bytes, quiet=False):
     filename : str
     """
     # craft trigger bytes
-    trigger_save_read = _craft_save_read_trigger(num_bytes)
+    trigger_save_read = _craft_save_read_trigger(num_bytes, rom_type)
+
+    if(debug):
+        print("trigger_save_read:")
+        hex_dump(trigger_save_read)
 
     # Send trigger_bytes
     gbop_device.write(OUT_ENDPOINT, trigger_save_read)
@@ -481,7 +488,7 @@ def read_save(gbop_device, num_bytes, quiet=False):
     return bytearray(received_data)
 
 
-def write_save(gbop_device, bytearray_data, quiet=False):
+def write_save(gbop_device, bytearray_data, quiet=False, debug=False):
     """
     Write save file to GB Operator device
 
@@ -492,7 +499,11 @@ def write_save(gbop_device, bytearray_data, quiet=False):
     """
     # craft trigger bytes
     trigger_save_write = _craft_save_write_trigger(len(bytearray_data))
-
+    
+    if(debug):
+        print("trigger_save_write:")
+        hex_dump(trigger_save_write)
+    
     # Send trigger_bytes
     gbop_device.write(OUT_ENDPOINT, trigger_save_write)
 

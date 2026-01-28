@@ -30,11 +30,26 @@ def parse_size_to_bytes(size_str):
     
     return 0
 
+def detect_gba_ram_size(rom_data):
+    # Common strings used by GBA libraries (AgbSram, AgbFlash, etc.)
+    if b"SRAM_V" in rom_data:
+        return "32 KiB"
+    elif b"FLASH_V" in rom_data or b"FLASH512_V" in rom_data:
+        return "64 KiB"
+    elif b"FLASH1M_V" in rom_data:
+        return "128 KiB"
+    elif b"EEPROM_V" in rom_data:
+        # EEPROM is tricky; it can be 0.5 KiB or 8 KiB. 
+        # Most databases default to 8 KiB for compatibility.
+        return "8 KiB"
+    return "0 KiB"
+    
 # %%
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dump-rom", type=str, default=None, help="Dump ROM to file")
     parser.add_argument("--dump-save", type=str, default=None, help="Dump save to file")
+    parser.add_argument("--rom-source", type=str, default=None, help="Get ram size from rom (GBA only)")
     parser.add_argument(
         "--write-save", type=str, default=None, help="Write save from file"
     )
@@ -123,7 +138,16 @@ def main():
         cr.printer.rule("[blue_violet]ROM AND SAVE OPERATIONS")
 
         if args.dump_save is not None:
-            cr.dump_save(args.dump_save)
+            if rom_info['cartridge_type'] == "GBA Standard":
+                #set cartridge ram size from rom content in this case and not from cartridge info
+                if args.rom_source is not None:
+                    with open(args.rom_source, "rb") as f:
+                        rom_data = f.read()
+                    rom_info['RAM_size'] = detect_gba_ram_size(rom_data)
+                    cr.printer.success(f"RAM size (detected):\t[dark_cyan]{rom_info['RAM_size']}[/dark_cyan]")
+                cr.dump_save(args.dump_save, parse_size_to_bytes(rom_info['RAM_size']))
+            else:
+                cr.dump_save(args.dump_save)
 
         if args.dump_rom is not None:
             if rom_info['cartridge_type'] == "GBA Standard":
