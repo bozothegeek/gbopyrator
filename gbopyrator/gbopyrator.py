@@ -44,11 +44,17 @@ def main():
         default=False,
         help="Do not output anything to stdout",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Display 'debug' info as hexdump",
+    )
     args = parser.parse_args()
 
     # %%
 
-    cr = CartridgeReader(quiet=args.quiet)
+    cr = CartridgeReader(quiet=args.quiet, debug=args.debug)
 
     cr.printer.greetings()
 

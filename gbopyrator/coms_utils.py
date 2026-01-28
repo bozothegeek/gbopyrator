@@ -363,7 +363,7 @@ def hex_dump(data):
         ascii_str = "".join(chr(b) if 32 <= b <= 126 else "." for b in chunk)
         print(f"{i:04x}     {hex_str:<48} {ascii_str}")
 
-def read_cartridge_info(gbop_device):
+def read_cartridge_info(gbop_device, debug=False):
     """
     Read cartridge info from GB Operator device
 
@@ -390,7 +390,8 @@ def read_cartridge_info(gbop_device):
     received_data = received_data[:60]
     
     # Prints space-separated Hex bytes for debug purposes
-    #hex_dump(received_data)
+    if(debug):
+        hex_dump(received_data)
         
     # check if received_data is all null bytes
     if not (received_data[3] or received_data[4]):

@@ -29,7 +29,7 @@ def release_device(func):
 
 def get_cartridge_info(func):
     def wrapper(*args, **kwargs):
-        cartridge_info = cu.read_cartridge_info(args[0].gbop_device)
+        cartridge_info = cu.read_cartridge_info(args[0].gbop_device, args[0].debug)
         if cartridge_info is None:
             raise Exception(
                 "Could not read cartridge info. Make sure a cartridge is inserted."
@@ -41,13 +41,14 @@ def get_cartridge_info(func):
 
 
 class CartridgeReader(object):
-    def __init__(self, quiet=False):
+    def __init__(self, quiet=False, debug=False):
         self.initialized = False
         self.console = Console()
         self.quiet = quiet
         self.printer = Printer(quiet=quiet)
+        self.debug = debug
 
-    def initialize_reader(self, blocking=False, timeout=0):
+    def initialize_reader(self, blocking=False, timeout=0, debug=False):
         if not blocking and timeout != 0:
             print("[WARNING] timeout is ignored when blocking is set to Fale",file=sys.stderr)
 
@@ -74,7 +75,7 @@ class CartridgeReader(object):
     @release_device
     def read_cartridge_info(self):
         # with self.printer.status("Reading cartridge info..."):
-        _cartridge_info = cu.read_cartridge_info(self.gbop_device)
+        _cartridge_info = cu.read_cartridge_info(self.gbop_device, self.debug)
         return _cartridge_info
 
     @check_initialized
