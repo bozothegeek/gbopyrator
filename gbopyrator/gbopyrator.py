@@ -65,31 +65,44 @@ def main():
     cr.initialize_reader(blocking=True,timeout=10)
 
     #get epilogue id for GB/GBC or GBA
-    rom_epilogue_id = cr.get_epilogue_id()
-    
+    rom_epilogue_id, rom_info_file = cr.get_epilogue_id_and_rom_info_file()
+    if(args.debug):
+        print("rom_epilogue_id: " + rom_epilogue_id)
+        print("rom_info_file use: " + rom_info_file)
     #get rom info file for GB/GBC or GBA
-    filename=resource_filename(__name__, cr.get_rom_info_file())
+    filename=resource_filename(__name__, rom_info_file)
     with open(filename, "r") as file:
         roms_db = json.load(file)
-    
+        
     # Print cartridge info
     if rom_epilogue_id in roms_db:
         rom_info = roms_db[rom_epilogue_id]
-        if rom_info['cartridge_type'] == "GBA Standard":
-            #set cartridge rom size from rom info
-            cr.set_cartridge_info("ROM_size",parse_size_to_bytes(rom_info['cartridge_type']))
+    else:
+        # Fallback: Search for the first game with the same 3-character prefix
+        prefix = rom_epilogue_id[:3]
+        # Find the first key in the DB that starts with the prefix
+        fallback_key = next((key for key in roms_db if key.startswith(prefix)), None)
+        
+        if fallback_key:
+            rom_info = roms_db[fallback_key]
+            cr.printer.print(f"[orange]Warning: Exact region match not found. Using info from {fallback_key}[/orange]")
+        else:
+            rom_info = None # Truly not in the database
+    if rom_info != None:
         # Center "rom info" text on =80 chars
         cr.printer.print("")
         cr.printer.rule("[blue_violet]CARTRIDGE INFO")
-        cr.printer.print(
-            f"""Detected game:\t[blue_violet]{rom_info['full_title']}[/blue_violet]"""
-        )
+        #using simple print to stay on one line in all cases
+        print(f"Detected game: {rom_info['full_title']}")
         if rom_info["SGB_support"]:
             cr.printer.print(f"""SGB support:\t[blue_violet]Yes[/blue_violet]""")
         if rom_info["CGB_support"]:
             cr.printer.print(f"""CGB support:\t[blue_violet]Yes[/blue_violet]""")
         cr.printer.print(
             f"""ROM size:\t[blue_violet]{rom_info['ROM_size']}[/blue_violet]"""
+        )
+        cr.printer.print(
+            f"""ROM checksum:\t[blue_violet]{rom_info['global_checksum']}[/blue_violet]"""
         )
         if rom_info["RAM_size"] != 0:
             cr.printer.print(
@@ -113,8 +126,11 @@ def main():
             cr.dump_save(args.dump_save)
 
         if args.dump_rom is not None:
-            cr.dump_rom(args.dump_rom)
-
+            if rom_info['cartridge_type'] == "GBA Standard":
+                #set cartridge rom size from rom info in this case and not from cartridge info
+                cr.dump_rom(args.dump_rom, parse_size_to_bytes(rom_info['ROM_size']))
+            else:
+                cr.dump_rom(args.dump_rom)
         if args.write_save is not None:
             cr.write_save_from_file(args.write_save)
 

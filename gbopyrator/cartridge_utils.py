@@ -86,13 +86,17 @@ class CartridgeReader(object):
     @check_initialized
     @release_device
     @get_cartridge_info
-    def read_rom(self, cartridge_info=None):
-        # with self.printer.status("Reading ROM..."):
-        num_bytes = cartridge_info["ROM_size"]
+    def read_rom(self, size=None, cartridge_info=None):
+        if size==None:
+            num_bytes = cartridge_info["ROM_size"]
+        else:
+            num_bytes = size
         return cu.read_rom(self.gbop_device, num_bytes, quiet=self.quiet)
 
     def dump_rom(self, filename):
         rom = self.read_rom()
+    def dump_rom(self, filename, romsize=None):
+        rom = self.read_rom(size=romsize)
         with open(filename, "wb") as f:
             f.write(rom)
         self.printer.success(f"ROM dumped to:\t[dark_cyan]{filename}[/dark_cyan]")
@@ -147,14 +151,28 @@ class CartridgeReader(object):
     def close(self):
         self.gbop_device.attach_kernel_driver(0)
 
+    def get_region_info(self, region_index):
+        # Mapping numeric index to (Letter, Full Name)
+        region_map = {
+            "0": ("J", "Japan"),
+            "1": ("E", "USA"),
+            "2": ("P", "Europe"),
+            "3": ("D", "Germany"),
+            "4": ("P", "Europe"),
+            "5": ("F", "France"),
+            "6": ("I", "Italy")
+        }
+    
+        # Default to 'X' (Unknown) if index isn't found
+        return region_map.get(str(region_index), ("X", "Unknown"))[0]
+    
     @check_initialized
     @get_cartridge_info
     def get_epilogue_id(self, cartridge_info=None):
         if cartridge_info["cartridge_type"] == "GBA":
             epilogue_id = (
-                cartridge_info["title_first_letter"].upper()
-                + cartridge_info["game_code"].upper()
-                + cartridge_info["game_region"].upper()
+                cartridge_info["game_code"].upper()
+                + self.get_region_info(cartridge_info["game_region"])
             )
         else: # for GB/GBC
             epilogue_id = (
@@ -171,6 +189,24 @@ class CartridgeReader(object):
             return "gba_roms_info.json"
         else: # for GB/GBC
             return "gb_gbc_roms_info.json"
+
+    @check_initialized
+    @get_cartridge_info
+    def get_epilogue_id_and_rom_info_file(self, cartridge_info=None):
+        if cartridge_info["cartridge_type"] == "GBA":
+            epilogue_id = (
+                cartridge_info["game_code"].upper()
+                + self.get_region_info(cartridge_info["game_region"])
+            )
+            rom_info_file = "gba_roms_info.json"
+        else: # for GB/GBC
+            epilogue_id = (
+                cartridge_info["title_first_letter"].upper()
+                + "{:02x}".format(cartridge_info["header_checksum"]).upper()
+                + binascii.hexlify(cartridge_info["global_checksum"]).decode().upper()
+            )
+            rom_info_file = "gb_gbc_roms_info.json"
+        return epilogue_id, rom_info_file
 
 def file_crc32(filename):
     with open(filename, "rb") as f:
