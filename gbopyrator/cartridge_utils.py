@@ -78,6 +78,11 @@ class CartridgeReader(object):
         return _cartridge_info
 
     @check_initialized
+    @get_cartridge_info
+    def set_cartridge_info(self, parameter, value, cartridge_info=None):
+        cartridge_info[parameter] = value
+
+    @check_initialized
     @release_device
     @get_cartridge_info
     def read_rom(self, cartridge_info=None):

@@ -1,7 +1,34 @@
 # %%
 import argparse
 from .cartridge_utils import CartridgeReader
-from gbopyrator import load_roms_db
+from pkg_resources import resource_filename
+import json
+
+def parse_size_to_bytes(size_str):
+    """
+    Convert a string as '4 MiB' or '128 KiB' in 'bytes' number (int).
+    """
+    if not size_str:
+        return 0
+        
+    # clean string (remove space and upper case)
+    size_str = size_str.upper().replace(' ', '')
+    
+    try:
+        if "MIB" in size_str:
+            number = float(size_str.replace("MIB", ""))
+            return int(number * 1024 * 1024)
+        elif "KIB" in size_str:
+            number = float(size_str.replace("KIB", ""))
+            return int(number * 1024)
+        elif "MB" in size_str: # Security if the 'i' is forgotten
+            number = float(size_str.replace("MB", ""))
+            return int(number * 1024 * 1024)
+    except ValueError:
+        print(f"Error : Impossible to read size '{size_str}'")
+        return 0
+    
+    return 0
 
 # %%
 def main():
@@ -42,6 +69,9 @@ def main():
     # Print cartridge info
     if rom_epilogue_id in roms_db:
         rom_info = roms_db[rom_epilogue_id]
+        if rom_info['cartridge_type'] == "GBA Standard":
+            #set cartridge rom size from rom info
+            cr.set_cartridge_info("ROM_size",parse_size_to_bytes(rom_info['cartridge_type']))
         # Center "rom info" text on =80 chars
         cr.printer.print("")
         cr.printer.rule("[blue_violet]CARTRIDGE INFO")
