@@ -31,9 +31,14 @@ def main():
         )
     cr.initialize_reader(blocking=True,timeout=10)
 
+    #get epilogue id for GB/GBC or GBA
     rom_epilogue_id = cr.get_epilogue_id()
-    roms_db = load_roms_db()
-
+    
+    #get rom info file for GB/GBC or GBA
+    filename=resource_filename(__name__, cr.get_rom_info_file())
+    with open(filename, "r") as file:
+        roms_db = json.load(file)
+    
     # Print cartridge info
     if rom_epilogue_id in roms_db:
         rom_info = roms_db[rom_epilogue_id]
