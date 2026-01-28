@@ -1,0 +1,15 @@
+{
+    "GAZL0": {
+        "full_title": "The Legend of Zelda: A Link to the Past & Four Swords (JPN).gba",
+        "title": "ZELDA PASTE",
+        "CGB_support": false,
+        "SGB_support": false,
+        "cartridge_type": "GBA Standard",
+        "ROM_size": "8 MiB",
+        "RAM_size": "64 KiB",
+        "destination": "JPN",
+        "ROM_version": "0x00",
+        "header_checksum": "0x85",
+        "global_checksum": null
+    }
+}
