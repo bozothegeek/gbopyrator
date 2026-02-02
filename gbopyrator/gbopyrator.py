@@ -108,7 +108,9 @@ def main():
         cr.printer.print("")
         cr.printer.rule("[blue_violet]CARTRIDGE INFO")
         #using simple print to stay on one line in all cases
-        print(f"Detected game: {rom_info['full_title']}")
+        cr.printer.print(f"Detected game: {rom_info['full_title']}")
+        if(args.debug and args.quiet):
+            print(f"Detected game: {rom_info['full_title']}")
         if rom_info["SGB_support"]:
             cr.printer.print(f"""SGB support:\t[blue_violet]Yes[/blue_violet]""")
         if rom_info["CGB_support"]:
@@ -116,9 +118,13 @@ def main():
         cr.printer.print(
             f"""ROM size:\t[blue_violet]{rom_info['ROM_size']}[/blue_violet]"""
         )
+        if(args.debug and args.quiet):
+            print(f"ROM size: {rom_info['ROM_size']}")
         cr.printer.print(
             f"""ROM checksum:\t[blue_violet]{rom_info['global_checksum']}[/blue_violet]"""
         )
+        if(args.debug and args.quiet):
+            print(f"ROM checksum: {rom_info['global_checksum']}")
         if rom_info["RAM_size"] != 0:
             cr.printer.print(
                 f"""RAM size:\t[blue_violet]{rom_info['RAM_size']}[/blue_violet]"""

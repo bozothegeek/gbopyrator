@@ -366,6 +366,14 @@ def hex_dump(data):
         ascii_str = "".join(chr(b) if 32 <= b <= 126 else "." for b in chunk)
         print(f"{i:04x}     {hex_str:<48} {ascii_str}")
 
+def hex_string(data, maxlen):
+    chunk = data[0:0+maxlen]
+    hex_str = chunk.hex(' ')
+    # Replace non-printable chars with dots
+    ascii_str = "  ".join(chr(b) if 32 <= b <= 126 else "." for b in chunk)
+    print(f"Hexa : {hex_str}")
+    print(f"Ascii: {ascii_str}")
+
 def read_cartridge_info(gbop_device, debug=False):
     """
     Read cartridge info from GB Operator device
@@ -394,7 +402,9 @@ def read_cartridge_info(gbop_device, debug=False):
     
     # Prints space-separated Hex bytes for debug purposes
     if(debug):
-        hex_dump(received_data)
+        #hex_dump(received_data)
+        print("GB Operator Header (first 32 bytes):")
+        hex_string(received_data, 32)
         
     # check if received_data is all null bytes
     if not (received_data[3] or received_data[4]):
