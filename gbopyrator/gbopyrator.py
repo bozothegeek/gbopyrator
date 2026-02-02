@@ -1,7 +1,7 @@
 # %%
 import argparse
 from .cartridge_utils import CartridgeReader
-from pkg_resources import resource_filename
+from importlib.resources import files
 import json
 
 def parse_size_to_bytes(size_str):
@@ -85,7 +85,7 @@ def main():
         print("rom_epilogue_id: " + rom_epilogue_id)
         print("rom_info_file use: " + rom_info_file)
     #get rom info file for GB/GBC or GBA
-    filename=resource_filename(__name__, rom_info_file)
+    filename = str(files("gbopyrator").joinpath(rom_info_file))
     with open(filename, "r") as file:
         roms_db = json.load(file)
         
