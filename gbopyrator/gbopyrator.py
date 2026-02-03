@@ -3,6 +3,7 @@ import argparse
 from .cartridge_utils import CartridgeReader
 from importlib.resources import files
 import json
+import os
 
 def parse_size_to_bytes(size_str):
     """
@@ -44,6 +45,54 @@ def detect_gba_ram_size(rom_data):
         return "8 KiB"
     return "0 KiB"
     
+def handle_duplicates(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            if not isinstance(result[key], list):
+                result[key] = [result[key]]
+            result[key].append(value)
+        else:
+            result[key] = value
+    return result
+
+def find_rom_info(db, game_code, crc=None):
+    # Normalize CRC format
+    if crc:
+        crc = f"0x{str(crc).upper().replace('0X', '')}"
+
+    # Step 1: SEARCH BY CRC FIRST (Highest Priority)
+    if crc:
+        for code, entries in db.items():
+            # Handle both single dicts and lists of doubloons
+            entry_list = entries if isinstance(entries, list) else [entries]
+            for entry in entry_list:
+                if entry.get("global_checksum") == crc:
+                    # If the code also matches, it's a perfect 100% match
+                    if code == game_code:
+                        return entry, None
+                    # If only CRC matches, return with a small info note
+                    return entry, f"Found match by CRC {crc} (Note: Code {code} differs from {game_code})"
+
+    # Step 2: SEARCH BY GAME CODE (Second Priority)
+    if game_code in db:
+        entries = db[game_code]
+        # Return first variant found for this code
+        entry = entries[0] if isinstance(entries, list) else entries
+        msg = f"CRC {crc} not found. Using first entry for code {game_code}" if crc else None
+        return entry, msg
+
+    # Step 3: FALLBACK - PREFIX SEARCH (3-character)
+    prefix = game_code[:3]
+    fallback_key = next((key for key in db if key.startswith(prefix)), None)
+    
+    if fallback_key:
+        entries = db[fallback_key]
+        entry = entries[0] if isinstance(entries, list) else entries
+        return entry, f"Exact match/CRC not found. Using info from prefix {fallback_key}"
+
+    return None, "ROM not found in database."
+
 # %%
 def main():
     parser = argparse.ArgumentParser()
@@ -86,23 +135,15 @@ def main():
         print("rom_info_file use: " + rom_info_file)
     #get rom info file for GB/GBC or GBA
     filename = str(files("gbopyrator").joinpath(rom_info_file))
-    with open(filename, "r") as file:
-        roms_db = json.load(file)
-        
-    # Print cartridge info
-    if rom_epilogue_id in roms_db:
-        rom_info = roms_db[rom_epilogue_id]
-    else:
-        # Fallback: Search for the first game with the same 3-character prefix
-        prefix = rom_epilogue_id[:3]
-        # Find the first key in the DB that starts with the prefix
-        fallback_key = next((key for key in roms_db if key.startswith(prefix)), None)
-        
-        if fallback_key:
-            rom_info = roms_db[fallback_key]
-            cr.printer.print(f"[orange]Warning: Exact region match not found. Using info from {fallback_key}[/orange]")
-        else:
-            rom_info = None # Truly not in the database
+    with open(filename, "r", encoding='utf-8') as file:
+        roms_db = json.load(file, object_pairs_hook=handle_duplicates)
+    
+    # Use the search function (assuming you have the current ROM's CRC)
+    # If you don't have the CRC, just pass None
+    rom_info, message = find_rom_info(roms_db, rom_epilogue_id)
+    if message:
+        cr.printer.print(f"[orange]Warning: {message}[/orange]")
+    
     if rom_info != None:
         # Center "rom info" text on =80 chars
         cr.printer.print("")
@@ -144,7 +185,7 @@ def main():
         cr.printer.rule("[blue_violet]ROM AND SAVE OPERATIONS")
 
         if args.dump_save is not None:
-            if rom_info['cartridge_type'] == "GBA Standard":
+            if rom_info['cartridge_type'].upper().startswith("GBA"):
                 #set cartridge ram size from rom content in this case and not from cartridge info
                 if args.rom_source is not None:
                     with open(args.rom_source, "rb") as f:
@@ -156,11 +197,30 @@ def main():
                 cr.dump_save(args.dump_save)
 
         if args.dump_rom is not None:
-            if rom_info['cartridge_type'] == "GBA Standard":
+            if rom_info['cartridge_type'].upper().startswith("GBA"):
                 #set cartridge rom size from rom info in this case and not from cartridge info
                 cr.dump_rom(args.dump_rom, parse_size_to_bytes(rom_info['ROM_size']))
+                #in case of GBA, we calculate CRC32 and recheck the game to update references if needed
+                crc32 = cr.file_crc32(args.dump_rom)
+                crc32 = crc32[0].upper() + crc32[1] + crc32[2:].upper()
+                if(args.debug):
+                    print(f"Checksum calculated : {crc32}")
+                if rom_info['global_checksum'] != crc32:
+                    rom_info, message = find_rom_info(roms_db, rom_epilogue_id, crc32)
+                    if message:
+                        cr.printer.print(f"[orange]Warning: {message}[/orange]")
+                    #new full title ?! rename previous one ?!
+                    if rom_info["full_title"] != args.dump_rom :
+                        folder = os.path.dirname(args.dump_rom)
+                        #print("new path: " + os.path.join(folder, rom_info["full_title"]))
+                        os.rename(args.dump_rom, os.path.join(folder, rom_info["full_title"]))
             else:
                 cr.dump_rom(args.dump_rom)
+            
+            cr.printer.print(f"Dumped game: {rom_info['full_title']}")
+            if(args.debug and args.quiet):
+                print(f"Dumped game: {rom_info['full_title']}")
+
         if args.write_save is not None:
             cr.write_save_from_file(args.write_save)
 

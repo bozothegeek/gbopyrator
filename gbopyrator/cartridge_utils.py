@@ -240,26 +240,26 @@ class CartridgeReader(object):
             rom_info_file = "gb_gbc_roms_info.json"
         return epilogue_id, rom_info_file
 
-def file_crc32(filename):
-    with open(filename, "rb") as f:
-        data = f.read()
-    out = binascii.crc32(data) & 0xFFFFFFFF
-    return hex(out)
+    def file_crc32(self, filename):
+        with open(filename, "rb") as f:
+            data = f.read()
+        out = binascii.crc32(data) & 0xFFFFFFFF
+        return hex(out)
 
 
-def bytearray_crc32(data):
-    out = binascii.crc32(data) & 0xFFFFFFFF
-    return hex(out)
+    def bytearray_crc32(self, data):
+        out = binascii.crc32(data) & 0xFFFFFFFF
+        return hex(out)
 
 
-def create_crc_db(filename):
-    with open(filename, "r") as f:
-        content = f.read()
-    game_regex = re.compile(
-        r'game \(\n\tcomment "(.*)"\n\tpublisher "(.*)"\n\trom \( crc (.*) \)\n\)'
-    )
-    games = game_regex.findall(content)
-    db = {}
-    for game in games:
-        db[game[2]] = game
-    return db
+    def create_crc_db(self, filename):
+        with open(filename, "r") as f:
+            content = f.read()
+        game_regex = re.compile(
+            r'game \(\n\tcomment "(.*)"\n\tpublisher "(.*)"\n\trom \( crc (.*) \)\n\)'
+        )
+        games = game_regex.findall(content)
+        db = {}
+        for game in games:
+            db[game[2]] = game
+        return db
