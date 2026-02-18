@@ -167,6 +167,8 @@ def main():
         if(args.debug and args.quiet):
             print(f"ROM checksum: {rom_info['global_checksum']}")
         if rom_info["RAM_size"] != 0:
+            if(args.debug and args.quiet):
+                print(f"RAM size: {rom_info['RAM_size']}")
             cr.printer.print(
                 f"""RAM size:\t[blue_violet]{rom_info['RAM_size']}[/blue_violet]"""
             )
@@ -184,7 +186,7 @@ def main():
         cr.printer.print("")
         cr.printer.rule("[blue_violet]ROM AND SAVE OPERATIONS")
 
-        if args.dump_save is not None:
+        if (args.dump_save is not None) and (rom_info["RAM_size"] != 0):
             if rom_info['cartridge_type'].upper().startswith("GBA"):
                 #set cartridge ram size from rom content in this case and not from cartridge info
                 if args.rom_source is not None:
@@ -193,9 +195,13 @@ def main():
                     rom_info['RAM_size'] = detect_gba_ram_size(rom_data)
                     cr.printer.success(f"RAM size (detected):\t[dark_cyan]{rom_info['RAM_size']}[/dark_cyan]")
                 cr.dump_save(args.dump_save, parse_size_to_bytes(rom_info['RAM_size']))
-            else:
-                cr.dump_save(args.dump_save)
-
+                cr.printer.print(f"Dumped save: {rom_info['full_title']}")
+                if(args.debug and args.quiet):
+                    print(f"Dumped save: {rom_info['full_title']}")
+        elif(args.dump_save is not None):
+                cr.printer.print(f"No save to dump !")
+                if(args.debug and args.quiet):
+                    print("No save to dump !")
         if args.dump_rom is not None:
             if rom_info['cartridge_type'].upper().startswith("GBA"):
                 #set cartridge rom size from rom info in this case and not from cartridge info
