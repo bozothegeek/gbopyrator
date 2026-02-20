@@ -155,8 +155,11 @@ class CartridgeReader(object):
     @check_initialized
     @release_device
     @get_cartridge_info
-    def write_save(self, data, cartridge_info=None):
-        num_bytes = cartridge_info["RAM_size"]
+    def write_save(self, data, cartridge_info=None, size=0):
+        if size == 0:
+            num_bytes = cartridge_info["RAM_size"]
+        else:
+            num_bytes = size
         if num_bytes == 0:
             self.printer.error(
                 "No RAM (save) detected on this cartridge. Impossible to write save."
@@ -167,14 +170,18 @@ class CartridgeReader(object):
                 f"Save size mismatch. Expected {num_bytes} bytes, got {len(data)} bytes."
             )
             return None
-        # with self.printer.status("Writing save..."):
-        return cu.write_save(self.gbop_device, data, quiet=self.quiet, debug=self.debug)
+        if (self.debug):
+            self.printer.print("RAM size (save) for this cartridge : " + str(num_bytes))
+        if cartridge_info["cartridge_type"] == "GBA":
+            return cu.write_save(self.gbop_device, data, quiet=self.quiet, debug=self.debug, rom_type="GBA")
+        else:
+            return cu.write_save(self.gbop_device, data, quiet=self.quiet, debug=self.debug, rom_type="GB/GBC")
 
-    def write_save_from_file(self, filename):
+    def write_save_from_file(self, filename, size=0):
         with open(filename, "rb") as f:
             data = f.read()
         time.sleep(1)
-        out = self.write_save(data)
+        out = self.write_save(data, size=size)
         if out is not None:
             self.printer.success(
                 f"Save written from:\t[dark_cyan]{filename}[/dark_cyan]"

@@ -188,8 +188,15 @@ def main():
 
         if args.dump_rom is not None:
             if rom_info['cartridge_type'].upper().startswith("GBA"):
-                #set cartridge rom size from rom info in this case and not from cartridge info
-                cr.dump_rom(args.dump_rom, parse_size_to_bytes(rom_info['ROM_size']))
+                # 2MB in bytes (Smallest possible GBA ROM)
+                MIN_GBA_SIZE = 2 * 1024 * 1024
+                # Check if file exists AND is large enough to be a real ROM
+                if os.path.exists(args.dump_rom) and os.path.getsize(args.dump_rom) >= MIN_GBA_SIZE:
+                    if(args.debug):
+                        print(f"Valid GBA ROM already exists ({os.path.getsize(args.dump_rom)} bytes). Skipping dump.")
+                else:
+                    #set cartridge rom size from rom info in this case and not from cartridge info
+                    cr.dump_rom(args.dump_rom, parse_size_to_bytes(rom_info['ROM_size']))
                 #in case of GBA, we calculate CRC32 and recheck the game to update references if needed
                 crc32 = cr.file_crc32(args.dump_rom)
                 crc32 = crc32[0].upper() + crc32[1] + crc32[2:].upper()
@@ -233,7 +240,18 @@ def main():
                     print("No save to dump !")
 
         if args.write_save is not None:
-            cr.write_save_from_file(args.write_save)
+            if rom_info['cartridge_type'].upper().startswith("GBA"):
+                #set cartridge ram size from rom content in this case and not from cartridge info if rom available
+                if args.dump_rom is not None:
+                    with open(args.dump_rom, "rb") as f:
+                        rom_data = f.read()
+                    rom_info['RAM_size'] = detect_gba_ram_size(rom_data)
+                    if(args.debug and args.quiet):
+                        print(f"RAM size (detected): {rom_info['RAM_size']}")
+                    cr.printer.success(f"RAM size (detected):\t[dark_cyan]{rom_info['RAM_size']}[/dark_cyan]")
+                cr.write_save_from_file(args.write_save, parse_size_to_bytes(rom_info['RAM_size']))
+            else:
+                cr.write_save_from_file(args.write_save)
 
         cr.close()
 
