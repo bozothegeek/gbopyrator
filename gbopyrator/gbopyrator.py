@@ -220,10 +220,16 @@ def main():
 
         if (args.dump_save is not None) and (rom_info["RAM_size"] != 0):
             if rom_info['cartridge_type'].upper().startswith("GBA"):
+                rom_data = None
                 #set cartridge ram size from rom content in this case and not from cartridge info if rom available
                 if args.dump_rom is not None:
                     with open(args.dump_rom, "rb") as f:
                         rom_data = f.read()
+                #set cartridge ram size from rom content in this case and not from cartridge info
+                if args.rom_source is not None:
+                    with open(args.rom_source, "rb") as f:
+                        rom_data = f.read()
+                if rom_data is not None:
                     rom_info['RAM_size'] = detect_gba_ram_size(rom_data)
                     if(args.debug and args.quiet):
                         print(f"RAM size (detected): {rom_info['RAM_size']}")
@@ -241,10 +247,16 @@ def main():
 
         if args.write_save is not None:
             if rom_info['cartridge_type'].upper().startswith("GBA"):
+                rom_data = None
                 #set cartridge ram size from rom content in this case and not from cartridge info if rom available
                 if args.dump_rom is not None:
                     with open(args.dump_rom, "rb") as f:
                         rom_data = f.read()
+                #set cartridge ram size from rom content in this case and not from cartridge info
+                if args.rom_source is not None:
+                    with open(args.rom_source, "rb") as f:
+                        rom_data = f.read()
+                if rom_data is not None:
                     rom_info['RAM_size'] = detect_gba_ram_size(rom_data)
                     if(args.debug and args.quiet):
                         print(f"RAM size (detected): {rom_info['RAM_size']}")
