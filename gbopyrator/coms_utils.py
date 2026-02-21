@@ -106,7 +106,7 @@ TRIGGER_SAVE_READ = bytearray(
 )
 
 
-def _craft_save_write_trigger(save_size):
+def _craft_save_write_trigger(save_size, rom_type="GB/GBC"):
     """
     Craft a save write trigger
 
@@ -122,7 +122,12 @@ def _craft_save_write_trigger(save_size):
     save_size_bytearray = save_size.to_bytes(
         (save_size.bit_length() + 7) // 8, byteorder="little"
     )
-    trigger_save_write = bytearray([0x03, 0x00, 0x00, 0x00, 0x00, 0x00])
+    if(rom_type == "GB/GBC"): #GB/GBC
+        #should be shorter ?! mistake to verify
+        trigger_save_write =     bytearray([0x03, 0x00, 0x00, 0x00, 0x80])
+    else: #GBA
+        trigger_save_write = bytearray([0x03, 0x01, 0x00, 0x00, 0x80])
+    
     trigger_save_write += save_size_bytearray
 
     # Add 0x00 to reach 60 bytes
@@ -176,10 +181,13 @@ def _craft_save_read_trigger(save_size, rom_type="GB/GBC"):
     save_size_bytearray = save_size.to_bytes(
         (save_size.bit_length() + 7) // 8, byteorder="little"
     )
+    
     if(rom_type == "GB/GBC"): #GB/GBC
-        trigger_save_read = bytearray([0x02, 0x00, 0x00, 0x00, 0x00])
+        #should be shorter ?! mistake to verify
+        #saw in usb logs: 02 00 00 00 80 00 20
+        trigger_save_read = bytearray([0x02, 0x00, 0x00, 0x00, 0x80])
     else: #GBA
-        trigger_save_read = bytearray([0x02, 0x01, 0x00, 0x00, 0x00])
+        trigger_save_read = bytearray([0x02, 0x01, 0x00, 0x00, 0x80])
     trigger_save_read += save_size_bytearray
 
     # Add 0x00 to reach 60 bytes
@@ -334,7 +342,7 @@ def read_bulk_in(gbop_device, num_bytes=0, with_ack=False, quiet=False):
     return received_data
 
 
-def write_bulk_out(gbop_device, data, qiuet=False):
+def write_bulk_out(gbop_device, data, quiet=False):
     """
     Write data to GB Operator device
 
@@ -343,7 +351,7 @@ def write_bulk_out(gbop_device, data, qiuet=False):
     gbop_device : usb.core.Device
     data : bytearray
     """
-    with Progress(disable=qiuet, transient=True) as progress:
+    with Progress(disable=quiet, transient=True) as progress:
         task = progress.add_task("Writing...", total=len(data))
 
         # Write data to GB Operator in chunks of 64 bytes
@@ -498,7 +506,7 @@ def read_save(gbop_device, num_bytes, quiet=False, debug=False, rom_type="GB/GBC
     return bytearray(received_data)
 
 
-def write_save(gbop_device, bytearray_data, quiet=False, debug=False):
+def write_save(gbop_device, bytearray_data, quiet=False, debug=False, rom_type="GB/GBC"):
     """
     Write save file to GB Operator device
 
@@ -508,7 +516,7 @@ def write_save(gbop_device, bytearray_data, quiet=False, debug=False):
     filename : str
     """
     # craft trigger bytes
-    trigger_save_write = _craft_save_write_trigger(len(bytearray_data))
+    trigger_save_write = _craft_save_write_trigger(len(bytearray_data), rom_type)
     
     if(debug):
         print("trigger_save_write:")
@@ -523,7 +531,7 @@ def write_save(gbop_device, bytearray_data, quiet=False, debug=False):
     _ = gbop_device.read(IN_ENDPOINT, 4)
 
     # Write data to GB Operator
-    write_bulk_out(gbop_device, bytearray_data, qiuet=quiet)
+    write_bulk_out(gbop_device, bytearray_data, quiet=quiet)
 
     return True
 
