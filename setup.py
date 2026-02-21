@@ -15,7 +15,7 @@ setup(
             "gbopyrator = gbopyrator.gbopyrator:main",
         ],
     },
-    package_data={"gbopyrator": ["gb_gbc_roms_info.json"]},
+    package_data={"gbopyrator": ["gb_gbc_roms_info.json","gba_roms_info.json"]},
     install_requires=read_requirements("requirements.txt"),
     classifiers=[
         "Development Status :: 4 - Beta",
